@@ -1,0 +1,26 @@
+{
+  "name": "clear2close-txm",
+  "version": "1.0.0",
+  "description": "Clear2Close Transaction Management — real estate transaction workflow automation",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon server/index.js",
+    "client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "migrate": "node -e \"require('dotenv').config(); const {readFileSync} = require('fs'); const {Pool} = require('pg'); const pool = new Pool({connectionString: process.env.DATABASE_URL, ssl: process.env.NODE_ENV === 'production' ? {rejectUnauthorized: false} : false}); pool.query(readFileSync('./server/db/schema.sql','utf8')).then(() => {console.log('Migration complete'); process.exit(0);}).catch(e => {console.error(e); process.exit(1);})\"",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.1",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.1",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "nodemon": "^3.1.7"
+  }
+}
