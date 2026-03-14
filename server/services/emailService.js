@@ -1,8 +1,8 @@
 const pool = require('../db');
+const { sendEmail } = require('./gmailClient');
 
 /**
- * Send an email from the queue.
- * Currently a stub — will be replaced with Gmail MCP integration.
+ * Send an email from the queue via the Gmail API.
  */
 async function sendQueuedEmail(emailId) {
   const res = await pool.query('SELECT * FROM email_queue WHERE id = $1', [emailId]);
@@ -13,16 +13,27 @@ async function sendQueuedEmail(emailId) {
   if (email.status === 'cancelled') throw new Error('Email was cancelled');
 
   try {
-    // --- Gmail MCP integration will go here ---
-    // For now, log the email and mark as sent
-    console.log(`[EmailService] Sending email: "${email.subject}" to ${email.to_addresses.join(', ')}`);
+    const to = email.to_addresses.join(', ');
+    const cc = email.cc_addresses && email.cc_addresses.length > 0
+      ? email.cc_addresses.join(', ')
+      : undefined;
+
+    const gmailMessageId = await sendEmail({
+      to,
+      cc,
+      subject: email.subject,
+      bodyHtml: email.body_html,
+    });
 
     await pool.query(
-      `UPDATE email_queue SET status = 'sent', sent_at = now(), updated_at = now() WHERE id = $1`,
-      [emailId]
+      `UPDATE email_queue
+       SET status = 'sent', sent_at = now(), gmail_message_id = $1, updated_at = now()
+       WHERE id = $2`,
+      [gmailMessageId, emailId]
     );
 
-    return { success: true, emailId, subject: email.subject };
+    console.log(`[EmailService] Sent "${email.subject}" to ${to} (Gmail ID: ${gmailMessageId})`);
+    return { success: true, emailId, subject: email.subject, gmailMessageId };
   } catch (err) {
     await pool.query(
       `UPDATE email_queue SET status = 'failed', error_message = $1, updated_at = now() WHERE id = $2`,
